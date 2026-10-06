@@ -102,12 +102,12 @@ let metric=false,sr=48000,micInputMode='distance';const speed=343;function updat
 document.addEventListener('click',async e=>{const b=e.target.closest('.copy-btn');if(!b)return;const raw=b.dataset.copy||'';const numeric=raw.replace(/[^0-9.+-]/g,'');try{await navigator.clipboard.writeText(numeric)}catch(err){const ta=document.createElement('textarea');ta.value=numeric;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}const check=b.parentElement.querySelector('.copy-check');if(check){check.classList.remove('show');void check.offsetWidth;check.classList.add('show');setTimeout(()=>check.classList.remove('show'),900)}});
 function syncPressedStates(){document.querySelectorAll('.toggle-group .btn,.hardware-picker .btn,.hardware-mode .btn,.note-buttons .btn').forEach(b=>b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false'))}const pressedObserver=new MutationObserver(syncPressedStates);document.querySelectorAll('.toggle-group .btn,.hardware-picker .btn,.hardware-mode .btn,.note-buttons .btn').forEach(b=>pressedObserver.observe(b,{attributes:true,attributeFilter:['class']}));
 updateDelay();updateRelease();updateNotes();updateHarm();updateMic();syncPressedStates();
-const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);const siteHead=document.querySelector('.site-head');function headerOffset(){return (siteHead?.offsetHeight||0)+16}function setActiveNav(id){navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id))}function activeSectionFromScroll(){if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-24){const last=sections[sections.length-1];if(last)setActiveNav(last.id);return}const marker=window.scrollY+headerOffset()+8;let current=sections[0];for(const section of sections){if(section.offsetTop<=marker)current=section;else break}if(current)setActiveNav(current.id)}let navLockUntil=0;navLinks.forEach(a=>a.addEventListener('pointerdown',()=>{const id=a.getAttribute('href').slice(1);setActiveNav(id)}));navLinks.forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const id=a.getAttribute('href').slice(1);const section=document.getElementById(id);if(!section)return;setActiveNav(id);navLockUntil=performance.now()+350;const start=window.scrollY,target=Math.max(0,section.offsetTop-headerOffset()),delta=target-start,duration=220,startTime=performance.now();function step(now){const t=Math.min(1,(now-startTime)/duration);const eased=1-Math.pow(1-t,3);window.scrollTo(0,start+delta*eased);if(t<1)requestAnimationFrame(step);else{setActiveNav(id);activeSectionFromScroll()}}requestAnimationFrame(step);history.replaceState(null,'','#'+id)}));let navTick=false;window.addEventListener('scroll',()=>{if(performance.now()<navLockUntil)return;if(navTick)return;navTick=true;requestAnimationFrame(()=>{activeSectionFromScroll();navTick=false})},{passive:true});window.addEventListener('resize',activeSectionFromScroll);activeSectionFromScroll();
+const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);const siteHead=document.querySelector('.site-head');function headerOffset(){return window.matchMedia('(max-width:650px)').matches&&window.mtMobileNavHeight?window.mtMobileNavHeight()+12:(siteHead?.offsetHeight||0)+16}function setActiveNav(id){navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id))}function activeSectionFromScroll(){if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-24){const last=sections[sections.length-1];if(last)setActiveNav(last.id);return}const marker=window.scrollY+headerOffset()+8;let current=sections[0];for(const section of sections){if(section.offsetTop<=marker)current=section;else break}if(current)setActiveNav(current.id)}let navLockUntil=0;navLinks.forEach(a=>a.addEventListener('pointerdown',()=>{const id=a.getAttribute('href').slice(1);setActiveNav(id)}));navLinks.forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const id=a.getAttribute('href').slice(1);const section=document.getElementById(id);if(!section)return;setActiveNav(id);navLockUntil=performance.now()+350;const start=window.scrollY,target=Math.max(0,section.offsetTop-headerOffset()),delta=target-start,duration=220,startTime=performance.now();function step(now){const t=Math.min(1,(now-startTime)/duration);const eased=1-Math.pow(1-t,3);window.scrollTo(0,start+delta*eased);if(t<1)requestAnimationFrame(step);else{setActiveNav(id);activeSectionFromScroll()}}requestAnimationFrame(step);history.replaceState(null,'','#'+id)}));let navTick=false;window.addEventListener('scroll',()=>{if(performance.now()<navLockUntil)return;if(navTick)return;navTick=true;requestAnimationFrame(()=>{activeSectionFromScroll();navTick=false})},{passive:true});window.addEventListener('resize',activeSectionFromScroll);activeSectionFromScroll();
 })();
 </script>
-<script>window.addEventListener('load',()=>requestAnimationFrame(()=>{const target=document.getElementById('notes'),head=document.querySelector('.site-head');if(target)window.scrollTo(0,Math.max(0,target.offsetTop-(head?.offsetHeight||0)-16));}));</script>
+<script>window.addEventListener('load',()=>requestAnimationFrame(()=>{const target=document.getElementById('notes'),head=document.querySelector('.site-head');if(!target)return;if(window.matchMedia('(max-width:650px)').matches&&window.mtGoToTool)window.mtGoToTool('notes','auto');else window.scrollTo(0,Math.max(0,target.offsetTop-(head?.offsetHeight||0)-16));}));</script>
 <script>
-// Mobile floating navigation: anchored to the Visual Viewport so Chrome's collapsing UI cannot cover it.
+// Mobile navigation: seamless handoff to a Visual Viewport-aware fixed copy.
 (function(){
   const original=document.querySelector('.site-head .nav');
   if(!original)return;
@@ -115,53 +115,66 @@ const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.
   floating.className='mobile-float-nav';
   floating.setAttribute('aria-label','Tool navigation (floating)');
   document.body.appendChild(floating);
-  const allNavLinks=[...document.querySelectorAll('.site-head .nav a, .mobile-float-nav a')];
   const mobileQuery=window.matchMedia('(max-width:650px)');
-  function vvTop(){return window.visualViewport ? Math.max(0,window.visualViewport.offsetTop) : 0}
-  let appliedTop=vvTop();
-  let latestTop=appliedTop;
-  let settleTimer=0;
-  let lastPageY=window.scrollY;
-  let scrollingUp=false;
-  function applyTop(top){
-    appliedTop=Math.max(0,top);
-    floating.style.transform=`translate3d(0,${appliedTop}px,0)`;
-  }
-  function scheduleSettledTop(){
-    clearTimeout(settleTimer);
-    settleTimer=setTimeout(()=>{applyTop(latestTop)},140);
-  }
+  const allNavLinks=[...document.querySelectorAll('.site-head .nav a, .mobile-float-nav a')];
+  let appliedTop=0, latestTop=0, settleTimer=0, lastPageY=window.scrollY, scrollingUp=false;
+
+  function vvTop(){return window.visualViewport?Math.max(0,window.visualViewport.offsetTop):0}
+  function applyTop(top){appliedTop=Math.max(0,top);floating.style.transform=`translate3d(0,${appliedTop}px,0)`}
+  function scheduleSettledTop(){clearTimeout(settleTimer);settleTimer=setTimeout(()=>applyTop(latestTop),140)}
   function positionFloating(stabilize){
     latestTop=vvTop();
-    if(!stabilize || !scrollingUp || latestTop>appliedTop+1){
-      applyTop(latestTop);
-    }else{
-      scheduleSettledTop();
-    }
+    if(!stabilize||!scrollingUp||latestTop>appliedTop+1)applyTop(latestTop);else scheduleSettledTop();
   }
-  function floatingHeight(){return floating.classList.contains('visible') ? floating.getBoundingClientRect().height : 0}
+  function measureFloatingHeight(){
+    if(floating.classList.contains('visible'))return floating.getBoundingClientRect().height;
+    const oldDisplay=floating.style.display,oldVisibility=floating.style.visibility;
+    floating.style.display='grid';floating.style.visibility='hidden';
+    const h=floating.getBoundingClientRect().height;
+    floating.style.display=oldDisplay;floating.style.visibility=oldVisibility;
+    return h;
+  }
+  window.mtMobileNavHeight=()=>mobileQuery.matches?measureFloatingHeight():0;
   function syncFloating(stabilize=false){
     if(!mobileQuery.matches){floating.classList.remove('visible');floating.style.transform='';clearTimeout(settleTimer);return}
     positionFloating(stabilize);
     const r=original.getBoundingClientRect();
-    floating.classList.toggle('visible',r.bottom<=vvTop());
+    // Handoff as soon as the original nav reaches the visible top. The fixed copy overlays it at
+    // exactly that point, so the buttons appear to stop rather than disappear and pop back in.
+    floating.classList.toggle('visible',r.top<=vvTop()+1);
   }
   function syncActive(id){allNavLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id))}
-  floating.querySelectorAll('a').forEach(a=>a.addEventListener('click',e=>{
-    e.preventDefault();
-    const id=a.getAttribute('href').slice(1), section=document.getElementById(id);
-    if(!section)return;
+  function targetY(section){
+    const docTop=window.scrollY+section.getBoundingClientRect().top;
+    return Math.max(0,docTop-vvTop()-measureFloatingHeight()-12);
+  }
+  function correctTarget(section){
+    const desired=targetY(section);
+    if(Math.abs(window.scrollY-desired)>1)window.scrollTo(0,desired);
+  }
+  function goToTool(id,behavior='smooth'){
+    const section=document.getElementById(id);if(!section)return;
     syncActive(id);
-    const top=window.scrollY+section.getBoundingClientRect().top-floating.getBoundingClientRect().height-12;
-    window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
-    history.replaceState(null,'','#'+id);
-  }));
+    window.scrollTo({top:targetY(section),behavior});
+    // Chrome may change its visual viewport while browser controls collapse. Correct once after
+    // that transition so a first navigation click lands identically to every later click.
+    clearTimeout(goToTool._t1);clearTimeout(goToTool._t2);
+    goToTool._t1=setTimeout(()=>correctTarget(section),260);
+    goToTool._t2=setTimeout(()=>correctTarget(section),520);
+  }
+  window.mtGoToTool=goToTool;
+
+  // Capture mobile nav clicks before the desktop navigation handler so both original and floating
+  // buttons use the same authoritative offset calculation from the very first click.
+  document.addEventListener('click',e=>{
+    if(!mobileQuery.matches)return;
+    const a=e.target.closest('.site-head .nav a, .mobile-float-nav a');if(!a)return;
+    e.preventDefault();e.stopImmediatePropagation();
+    const id=a.getAttribute('href').slice(1);goToTool(id,'smooth');history.replaceState(null,'','#'+id);
+  },true);
+
   window.addEventListener('scroll',()=>{
-    const y=window.scrollY;
-    scrollingUp=y<lastPageY;
-    lastPageY=y;
-    syncFloating(scrollingUp);
-    if(scrollingUp)scheduleSettledTop();
+    const y=window.scrollY;scrollingUp=y<lastPageY;lastPageY=y;syncFloating(scrollingUp);if(scrollingUp)scheduleSettledTop();
   },{passive:true});
   window.addEventListener('resize',()=>syncFloating(false),{passive:true});
   if(window.visualViewport){
@@ -171,11 +184,7 @@ const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.
   }
   mobileQuery.addEventListener?.('change',()=>syncFloating(false));
   syncFloating(false);
-  // Keep floating active state matched to the original nav's active state.
-  const observer=new MutationObserver(()=>{
-    const active=original.querySelector('a.active');
-    if(active)syncActive(active.getAttribute('href').slice(1));
-  });
+  const observer=new MutationObserver(()=>{const active=original.querySelector('a.active');if(active)syncActive(active.getAttribute('href').slice(1))});
   original.querySelectorAll('a').forEach(a=>observer.observe(a,{attributes:true,attributeFilter:['class']}));
 })();
 </script></body></html>
