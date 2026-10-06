@@ -117,12 +117,32 @@ const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.
   document.body.appendChild(floating);
   const allNavLinks=[...document.querySelectorAll('.site-head .nav a, .mobile-float-nav a')];
   const mobileQuery=window.matchMedia('(max-width:650px)');
-  function vvTop(){return window.visualViewport ? window.visualViewport.offsetTop : 0}
-  function positionFloating(){floating.style.transform=`translateY(${Math.max(0,vvTop())}px)`}
+  function vvTop(){return window.visualViewport ? Math.max(0,window.visualViewport.offsetTop) : 0}
+  let appliedTop=vvTop();
+  let latestTop=appliedTop;
+  let settleTimer=0;
+  let lastPageY=window.scrollY;
+  let scrollingUp=false;
+  function applyTop(top){
+    appliedTop=Math.max(0,top);
+    floating.style.transform=`translate3d(0,${appliedTop}px,0)`;
+  }
+  function scheduleSettledTop(){
+    clearTimeout(settleTimer);
+    settleTimer=setTimeout(()=>{applyTop(latestTop)},140);
+  }
+  function positionFloating(stabilize){
+    latestTop=vvTop();
+    if(!stabilize || !scrollingUp || latestTop>appliedTop+1){
+      applyTop(latestTop);
+    }else{
+      scheduleSettledTop();
+    }
+  }
   function floatingHeight(){return floating.classList.contains('visible') ? floating.getBoundingClientRect().height : 0}
-  function syncFloating(){
-    if(!mobileQuery.matches){floating.classList.remove('visible');floating.style.transform='';return}
-    positionFloating();
+  function syncFloating(stabilize=false){
+    if(!mobileQuery.matches){floating.classList.remove('visible');floating.style.transform='';clearTimeout(settleTimer);return}
+    positionFloating(stabilize);
     const r=original.getBoundingClientRect();
     floating.classList.toggle('visible',r.bottom<=vvTop());
   }
@@ -136,14 +156,21 @@ const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.
     window.scrollTo({top:Math.max(0,top),behavior:'smooth'});
     history.replaceState(null,'','#'+id);
   }));
-  window.addEventListener('scroll',syncFloating,{passive:true});
-  window.addEventListener('resize',syncFloating,{passive:true});
+  window.addEventListener('scroll',()=>{
+    const y=window.scrollY;
+    scrollingUp=y<lastPageY;
+    lastPageY=y;
+    syncFloating(scrollingUp);
+    if(scrollingUp)scheduleSettledTop();
+  },{passive:true});
+  window.addEventListener('resize',()=>syncFloating(false),{passive:true});
   if(window.visualViewport){
-    window.visualViewport.addEventListener('resize',syncFloating,{passive:true});
-    window.visualViewport.addEventListener('scroll',syncFloating,{passive:true});
+    const onVisualViewportChange=()=>syncFloating(true);
+    window.visualViewport.addEventListener('resize',onVisualViewportChange,{passive:true});
+    window.visualViewport.addEventListener('scroll',onVisualViewportChange,{passive:true});
   }
-  mobileQuery.addEventListener?.('change',syncFloating);
-  syncFloating();
+  mobileQuery.addEventListener?.('change',()=>syncFloating(false));
+  syncFloating(false);
   // Keep floating active state matched to the original nav's active state.
   const observer=new MutationObserver(()=>{
     const active=original.querySelector('a.active');
