@@ -85,7 +85,7 @@
 <div class="comb-controls">
 <div class="comb-control field"><label for="combSecondLevel">Second signal level (relative to first)</label><div class="comb-value-row"><input id="combSecondLevel" type="number" min="-18" max="0" step="1" value="0"/><span class="small">dB</span></div><input id="combLevelSlider" type="range" min="-18" max="0" step="1" value="0" aria-label="Second signal level relative to first in dB"/></div>
 </div>
-<div class="comb-plot"><svg id="combPlot" viewBox="0 0 760 260" role="img" aria-label="Idealized summed frequency response of two coherent signals from 20 Hz to 20 kHz"><title>Comb filter response relative to first signal</title></svg><div id="combDensityMessage" class="comb-density hidden" role="status">Individual notches are too dense to display accurately. Reduce the arrival-time difference to view the response. Numerical calculations remain available.</div><p class="small" id="combPlotCaption">Idealized coherent signals, relative to the first signal.</p></div>
+<div class="comb-plot"><svg id="combPlot" viewBox="0 0 760 260" role="img" aria-label="Idealized comb-filter frequency response normalized to maximum reinforcement at 0 dB, from 20 Hz to 20 kHz"><title>Comb filter response normalized to maximum reinforcement</title></svg><div id="combDensityMessage" class="comb-density hidden" role="status">Individual notches are too dense to display accurately. Reduce the arrival-time difference to view the response. Numerical calculations remain available.</div><p class="small" id="combPlotCaption">Idealized coherent signals · Response normalized to maximum reinforcement (0 dB).</p></div>
 <div class="comb-explainer"><details><summary>UNDERSTANDING COMB FILTERING</summary><p>When two microphones capture the same source at different arrival times, their signals can reinforce or cancel each other at different frequencies. This creates the repeating peaks and notches known as comb filtering.</p><p>Moving a microphone changes the notch frequencies. Changing the relative signal levels changes their depth. EQ generally cannot fully correct cancellation between the signals.</p><p>This graph assumes coherent signals with identical frequency responses. Different microphones, source positions, polar patterns, and reflections produce more complex results.</p></details></div></section><details class="about-tool"><summary>ABOUT THIS TOOL</summary><div class="about-body"><p>When two microphones are different distances from the same source, the sound reaches them at different times. The calculator can start from microphone distance, a known time offset, or a known sample offset, then converts between distance, arrival time, and samples at 44.1, 48, or 96 kHz. It uses a fixed speed of sound of 343 meters per second, a practical room-temperature reference.</p><p>When similar signals with a time offset are combined, some frequencies reinforce while others cancel, producing comb filtering. The first destructive null is determined by the arrival-time difference, with additional nulls at odd multiples of that frequency. The table lists destructive nulls through 20 kHz.</p><p>This calculation describes the timing relationship created by distance. Real microphone signals may produce less-perfect cancellation because of level differences, polar patterns, reflections, source geometry, and differences between the microphones.</p></div></details></section>
 </main>
 <footer class="site-footer"><div class="wrap"><div class="footer-details"><details><summary>ABOUT</summary><p>Mixer Toolbox is a collection of quick-grab tools built by audio engineer James Fleege for working mixers and engineers.</p></details><details><summary>PRIVACY</summary><p>Mixer Toolbox uses Cloudflare Web Analytics to collect anonymous usage data. No personal information is collected directly by Mixer Toolbox.</p></details><details><summary>CONTACT</summary><p>Questions, feedback, or suggestions? Reach out at <a href="mailto:hello@mixertoolbox.com" style="color:var(--text)">hello@mixertoolbox.com</a>.</p></details></div>Built by the same guy who built <a href="https://open.spotify.com/playlist/3hGRSNxTcrNWWYDpOxLlve?si=72faea9bc0ba4b09" target="_blank" rel="noopener noreferrer" style="color:var(--text)">jamesfleege.com</a></div></footer><script>
@@ -158,9 +158,9 @@ function renderCombPlot(sec){
   // With >~60 notches across the audible band, the finite-size plot becomes misleading.
   const tooDense=notchCount>60;
   svg.classList.toggle('hidden',tooDense);notice.classList.toggle('hidden',!tooDense);
-  if(tooDense){svg.innerHTML='';caption.textContent=`${notchCount} theoretical nulls below 20 kHz · Numerical results above remain available.`;return;}
+  if(tooDense){svg.innerHTML='';caption.textContent=`${notchCount} theoretical nulls below 20 kHz · Numerical results above remain available. Response normalized to maximum reinforcement (0 dB).`;return;}
   const left=51,right=744,top=12,bottom=216,w=right-left,h=bottom-top;
-  const minDb=-40,maxDb=8;
+  const minDb=-40,maxDb=0;
   const freqToX=f=>left+Math.log(f/20)/Math.log(1000)*w;
   const dbToY=db=>top+(maxDb-db)/(maxDb-minDb)*h;
   let lines='';
@@ -168,7 +168,7 @@ function renderCombPlot(sec){
     const x=freqToX(f);
     lines+=`<line x1="${x}" y1="${top}" x2="${x}" y2="${bottom}" stroke="#686d69" stroke-opacity=".25"/><text x="${x}" y="235" fill="#bcb9ab" font-size="11" text-anchor="middle">${f>=1000?(f/1000)+'k':f}</text>`;
   }
-  for(const db of [6,0,-10,-20,-30,-40]){
+  for(const db of [0,-10,-20,-30,-40]){
     const y=dbToY(db);
     lines+=`<line x1="${left}" y1="${y}" x2="${right}" y2="${y}" stroke="#686d69" stroke-opacity="${db===0?'.6':'.3'}"/><text x="${left-8}" y="${y+4}" fill="#bcb9ab" font-size="11" text-anchor="end">${db>0?'+'+db:db}</text>`;
   }
@@ -178,11 +178,12 @@ function renderCombPlot(sec){
   for(let i=0;i<=samples;i++){
     const f=20*Math.pow(1000,i/samples);
     const magnitude=Math.sqrt(Math.max(0,1+a*a+2*a*Math.cos(2*Math.PI*f*sec)));
-    const db=Math.max(minDb,Math.min(maxDb,20*Math.log10(Math.max(magnitude,1e-9))));
+    const maxMagnitude=1+a;
+    const db=Math.max(minDb,Math.min(maxDb,20*Math.log10(Math.max(magnitude,1e-9)/maxMagnitude)));
     path+=(i?'L':'M')+freqToX(f).toFixed(2)+' '+dbToY(db).toFixed(2)+' ';
   }
   svg.innerHTML=lines+`<path d="${path}" fill="none" stroke="#11ad9e" stroke-width="1" stroke-linejoin="round"/>`;
-  caption.textContent=`Idealized coherent signals · ${ms.toFixed(2)} ms difference · Second signal ${relativeDb===0?'equal level':relativeDb+' dB'} · Response relative to first signal.`;
+  caption.textContent=`Idealized coherent signals · ${ms.toFixed(2)} ms difference · Second signal ${relativeDb===0?'equal level':relativeDb+' dB'} · Response normalized to maximum reinforcement (0 dB).`;
 }
 const combLevelInput=document.getElementById('combSecondLevel'),combLevelSlider=document.getElementById('combLevelSlider');
 combLevelInput.addEventListener('input',()=>{
