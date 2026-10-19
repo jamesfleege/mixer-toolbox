@@ -1,0 +1,11 @@
+# Legacy calculator URLs redirect to the corresponding homepage tool
+/delay-reverb-calculator/ /#delay 301
+/delay-reverb-calculator /#delay 301
+/compressor-release-time-calculator/ /#release 301
+/compressor-release-time-calculator /#release 301
+/note-frequency-calculator/ /#notes 301
+/note-frequency-calculator /#notes 301
+/harmonic-frequency-calculator/ /#harmonics 301
+/harmonic-frequency-calculator /#harmonics 301
+/microphone-phase-comb-filter-calculator/ /#micdistance 301
+/microphone-phase-comb-filter-calculator /#micdistance 301
