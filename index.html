@@ -205,6 +205,18 @@ document.addEventListener('click',async e=>{const b=e.target.closest('.copy-btn'
 function syncPressedStates(){document.querySelectorAll('.toggle-group .btn,.hardware-picker .btn,.hardware-mode .btn,.note-buttons .btn').forEach(b=>b.setAttribute('aria-pressed',b.classList.contains('active')?'true':'false'))}const pressedObserver=new MutationObserver(syncPressedStates);document.querySelectorAll('.toggle-group .btn,.hardware-picker .btn,.hardware-mode .btn,.note-buttons .btn').forEach(b=>pressedObserver.observe(b,{attributes:true,attributeFilter:['class']}));
 updateDelay();updateRelease();updateNotes();updateHarm();updateMic();syncPressedStates();
 const navLinks=[...document.querySelectorAll('.nav a')];const sections=navLinks.map(a=>document.querySelector(a.getAttribute('href'))).filter(Boolean);const siteHead=document.querySelector('.site-head');function headerOffset(){return window.matchMedia('(max-width:650px)').matches&&window.mtMobileNavHeight?window.mtMobileNavHeight()+12:(siteHead?.offsetHeight||0)+16}function setActiveNav(id){navLinks.forEach(a=>a.classList.toggle('active',a.getAttribute('href')==='#'+id))}function activeSectionFromScroll(){if(window.innerHeight+window.scrollY>=document.documentElement.scrollHeight-24){const last=sections[sections.length-1];if(last)setActiveNav(last.id);return}const marker=window.scrollY+headerOffset()+8;let current=sections[0];for(const section of sections){if(section.offsetTop<=marker)current=section;else break}if(current)setActiveNav(current.id)}let navLockUntil=0;navLinks.forEach(a=>a.addEventListener('pointerdown',()=>{const id=a.getAttribute('href').slice(1);setActiveNav(id)}));navLinks.forEach(a=>a.addEventListener('click',e=>{e.preventDefault();const id=a.getAttribute('href').slice(1);const section=document.getElementById(id);if(!section)return;setActiveNav(id);navLockUntil=performance.now()+350;const start=window.scrollY,target=Math.max(0,section.offsetTop-headerOffset()),delta=target-start,duration=220,startTime=performance.now();function step(now){const t=Math.min(1,(now-startTime)/duration);const eased=1-Math.pow(1-t,3);window.scrollTo(0,start+delta*eased);if(t<1)requestAnimationFrame(step);else{setActiveNav(id);activeSectionFromScroll()}}requestAnimationFrame(step);history.replaceState(null,'','#'+id)}));let navTick=false;window.addEventListener('scroll',()=>{if(performance.now()<navLockUntil)return;if(navTick)return;navTick=true;requestAnimationFrame(()=>{activeSectionFromScroll();navTick=false})},{passive:true});window.addEventListener('resize',activeSectionFromScroll);activeSectionFromScroll();
+// On a redirected URL containing #tool-id, align below the real sticky header.
+// Native anchor scrolling can happen before the header finishes laying out.
+window.addEventListener('load',()=>{
+  const id=decodeURIComponent(window.location.hash.slice(1));
+  const section=sections.find(s=>s.id===id);
+  if(!section)return;
+  requestAnimationFrame(()=>{
+    const top=Math.max(0,window.scrollY+section.getBoundingClientRect().top-headerOffset());
+    window.scrollTo({top,behavior:'auto'});
+    setActiveNav(id);
+  });
+});
 })();
 </script>
 <script>
